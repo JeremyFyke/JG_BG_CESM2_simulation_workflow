@@ -32,12 +32,12 @@ D=$PWD
 			   --project $ProjCode \
 			   --run-unsupported \
 			   --user-compset \
-			   --compset 1850_DATM%CRU_CLM50%BGC_CICE_POP2%ECO_MOSART_CISM2%EVOLVE_WW3_BGC%BDRD     
-
+			   --compset 1850_DATM%CRU_CLM50%BGC_CICE_POP2%ECO_MOSART_CISM2%EVOLVE_WW3_BGC%BDRD 
+			   
     #Change directories into the new experiment case directory
     cd $D/$CaseName
-
     ./xmlchange RUNDIR=$JG_t_RunDir
+
     ./xmlchange NTASKS_ATM=30
     ./xmlchange NTASKS_CPL=930
     ./xmlchange NTASKS_GLC=1440
@@ -55,8 +55,9 @@ D=$PWD
     ./xmlchange ROOTPE_OCN=960
     ./xmlchange ROOTPE_ROF=0
     ./xmlchange ROOTPE_WAV=0
-    
-    
+
+    ./xmlchange RUNDIR=$JG_t_RunDir
+    	 
     ./xmlchange RUN_TYPE='hybrid'
     ./xmlchange RUN_REFCASE="$PreviousBGCaseName"
     ./xmlchange RUN_REFDATE="$BG_Restart_Year"-01-01
@@ -137,9 +138,9 @@ D=$PWD
     ./xmlchange STOP_N=1
     ./xmlchange HIST_OPTION='nmonths'
     ./xmlchange HIST_N=1
-    ./xmlchange RESUBMIT=149
+    ./xmlchange RESUBMIT=9
     ./xmlchange JOB_QUEUE='regular'
-    ./xmlchange JOB_WALLCLOCK_TIME='00:45'
+    ./xmlchange JOB_WALLCLOCK_TIME='12:00:00'
     ./xmlchange PROJECT="$ProjCode"
 
 ###make some soft links for convenience 
@@ -147,25 +148,27 @@ D=$PWD
     ln -svf /glade/scratch/jfyke/archive/$CaseName ArchiveDir
     
 ###set up restoring
-    for m in `seq -f '%02g' 1 12`; do
-      echo 'Calculating monthly restoring SSS climatology for month: ' $m
-      flist=""
-      for yr in `seq -f '%04g' $BG_Forcing_Year_Start $BG_Forcing_Year_End`; do
-	flist="$flist $BG_tm1_ArchiveDir/$PreviousBGCaseName.pop.h.$yr-$m.nc"
-      done    
-      ncra -F -v SALT -d z_t,1,1,1 $flist $BG_tm1_ArchiveDir/SSS_FLXIO_$m.nc
-      ncra -A -F -v SALT_F $flist $BG_tm1_ArchiveDir/SSS_FLXIO_$m.nc
-    done
-
-    ncrcat -O $BG_tm1_ArchiveDir/SSS_FLXIO_* $BG_tm1_ArchiveDir/temp.nc
-    ncrename -v SALT,SSS $BG_tm1_ArchiveDir/temp.nc
-    ncrename -v SALT_F,FLXIO $BG_tm1_ArchiveDir/temp.nc
-    ncwa -O -a z_t $BG_tm1_ArchiveDir/temp.nc $BG_tm1_ArchiveDir/climo_SSS_FLXIO.nc
-    rm $BG_tm1_ArchiveDir/SSS_FLXIO_* $BG_tm1_ArchiveDir/temp.nc
-
     if [ ! -f $BG_tm1_ArchiveDir/climo_SSS_FLXIO.nc ]; then
-      echo 'Error: something wrong with climo_SSS_FLXIO.nc creation'
-      exit
+       for m in `seq -f '%02g' 1 12`; do
+	 echo 'Calculating monthly restoring SSS climatology for month: ' $m
+	 flist=""
+	 for yr in `seq -f '%04g' $BG_Forcing_Year_Start $BG_Forcing_Year_End`; do
+	   flist="$flist $BG_tm1_ArchiveDir/$PreviousBGCaseName.pop.h.$yr-$m.nc"
+	 done    
+	 ncra -F -v SALT -d z_t,1,1,1 $flist $BG_tm1_ArchiveDir/SSS_FLXIO_$m.nc
+	 ncra -A -F -v SALT_F $flist $BG_tm1_ArchiveDir/SSS_FLXIO_$m.nc
+       done
+
+       ncrcat -O $BG_tm1_ArchiveDir/SSS_FLXIO_* $BG_tm1_ArchiveDir/temp.nc
+       ncrename -v SALT,SSS $BG_tm1_ArchiveDir/temp.nc
+       ncrename -v SALT_F,FLXIO $BG_tm1_ArchiveDir/temp.nc
+       ncwa -O -a z_t $BG_tm1_ArchiveDir/temp.nc $BG_tm1_ArchiveDir/climo_SSS_FLXIO.nc
+       rm $BG_tm1_ArchiveDir/SSS_FLXIO_* $BG_tm1_ArchiveDir/temp.nc
+
+       if [ ! -f $BG_tm1_ArchiveDir/climo_SSS_FLXIO.nc ]; then
+	 echo 'Error: something wrong with climo_SSS_FLXIO.nc creation'
+	 exit
+       fi
     fi
     
     echo "sfwf_filename='$BG_tm1_ArchiveDir/climo_SSS_FLXIO.nc'" >> user_nl_pop
@@ -176,7 +179,7 @@ D=$PWD
     ./case.build    
 
 ###sumbmit
-    #./case.submit
+    ./case.submit
 
 
     

@@ -55,14 +55,23 @@ BG_t_RunDir=/glade/scratch/jfyke/$CaseName/run
     #echo 'use_init_interp = .false.' > user_nl_clm
 
 ###configure topography updating
+
+     module purge
+     module load ncarenv/1.2
+     module load intel/17.0.1
+     module load ncarcompilers/0.4.1
+     module load mpt/2.15f
+
+     module load netcdf/4.4.1.1
+     module load nco/4.6.2
+     module load python/2.7.13
+
      CAM_topo_regen_dir=$BG_t_RunDir/dynamic_atm_topog
      if [ ! -d $CAM_topo_regen_dir ]; then
        echo 'Checking out and building topography updater...'
        gmake=/usr/bin/gmake
        trunk=https://svn-ccsm-models.cgd.ucar.edu/tools/dynamic_cam_topography/trunk
        svn co $trunk $CAM_topo_regen_dir
-       cd $CAM_topo_regen_dir/phis_smoothing/definesurf
-       $gmake
        cd $CAM_topo_regen_dir/bin_to_cube
        $gmake
        cd $CAM_topo_regen_dir/cube_to_target
