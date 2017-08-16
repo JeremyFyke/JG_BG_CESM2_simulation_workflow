@@ -3,11 +3,11 @@
 D=$PWD
 
 ###build up CaseNames, RunDirs, Archive Dirs, etc.
-    t=3
+    t=2
     let tm1=t-1
 
     BG_CaseName_Root=BG_iteration_
-    JG_CaseName_Root=JG_iteration_
+    JG_CaseName_Root=JG_iteration_test_timing_control_
     BG_Restart_Year_Short=12
     BG_Restart_Year=`printf %04d $BG_Restart_Year_Short`
     BG_Forcing_Year_Start=2
@@ -38,52 +38,8 @@ D=$PWD
     cd $D/$CaseName
     ./xmlchange RUNDIR=$JG_t_RunDir
 
-###Set customized PE layout
-    #Following PE layouts are clumped in order of concurrence.
-    ALLOCATED_PEs=0
-    #ATM/LND
-    TASKS_LND_ROF=180
-    ./xmlchange NTASKS_LND=$TASKS_LND_ROF
-    ./xmlchange NTASKS_ROF=$TASKS_LND_ROF
-    ./xmlchange ROOTPE_LND=$ALLOCATED_PEs       
-    ./xmlchange ROOTPE_ROF=$ALLOCATED_PEs
-    let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_LND_ROF
-
-    #ICE
-    TASKS_ICE=72
-    ./xmlchange NTASKS_ICE=$TASKS_ICE
-    ./xmlchange ROOTPE_ICE=$ALLOCATED_PEs
-    let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_ICE    
-    
-    #WAV
-    TASKS_WAV=36
-    ./xmlchange NTASKS_WAV=$TASKS_WAV    
-    ./xmlchange ROOTPE_WAV=$ALLOCATED_PEs   
-    let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_WAV
-       
-    #DATM
-    TASKS_DATM=36
-    ./xmlchange NTASKS_ATM=$TASKS_DATM    
-    ./xmlchange ROOTPE_ATM=$ALLOCATED_PEs     
-    let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_DATM
-    
-    #OCN
-    TASKS_OCN=360
-    ./xmlchange NTASKS_OCN=$TASKS_OCN
-    ./xmlchange ROOTPE_OCN=$ALLOCATED_PEs    
-    let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_OCN
-    
-    #CPL #overlay CPL on LND/ROF, ICE, WAV, and DATM PE columns
-    let TASKS_CPL=TASKS_LND_ROF+TASKS_ICE+TASKS_WAV+TASKS_DATM
-    ./xmlchange NTASKS_CPL=$TASKS_CPL
-    ./xmlchange ROOTPE_CPL=0
-    
-    #GLC #overlay GLC on top of all other  columns
-    let TASKS_GLC=TASKS_LND_ROF+TASKS_ICE+TASKS_WAV+TASKS_DATM+TASKS_OCN
-    ./xmlchange NTASKS_GLC=$TASKS_GLC
-    ./xmlchange ROOTPE_GLC=0
-    
-    echo Total of $ALLOCATED_PEs PEs requested fer this simulation...
+###set PE layout
+    echo Total PEs requested fer this simulation...
     ./xmlquery NTASKS
     ./xmlquery ROOTPE    
 
@@ -104,8 +60,6 @@ D=$PWD
     ./xmlchange CPL_ALBAV='false'
     ./xmlchange CPL_EPBAL='off'
 
-    ./xmlchange DATM_TOPO='none' #NOTE: ALSO NEED 'a2x3h_S_topo topo' line added to datm/cime_config/namelist_definition_datm.xml!
-
     ./case.setup
     
 ###configure archiving
@@ -124,7 +78,9 @@ D=$PWD
 	for m in `seq -f '%02g' 1 12`; do
 	   for ftype in ha2x1hi ha2x1h ha2x3h ha2x1d; do       
 	      fname_out=$BG_tm1_ArchiveDir/$PreviousBGCaseName.cpl.$ftype.$yr-$m.nc
-	      if [ ! -f $fname_out ]; then
+	      if [ -f $fname_out ]; then
+	         echo 'NOT Concatenating ' $fname_out ': already exists.'
+	      else
 	         echo 'Concatenating ' $fname_out
 	         ncrcat -O $BG_tm1_ArchiveDir/$PreviousBGCaseName.cpl.$ftype.$yr-$m-*.nc $fname_out &
               fi
@@ -144,7 +100,6 @@ D=$PWD
     #Maybe nothing to do here..?
 
 ####copy over JG restart files from previous BG run
-    echo Copying restart files from $PreviousBGCaseName
     f=$BG_tm1_ArchiveDir/$PreviousBGCaseName.cice.r."$BG_Restart_Year"-01-01-00000.nc;      cp -uvf $f $JG_t_RunDir || { echo "copy of $f failed" ; exit 1; }
     f=$BG_tm1_ArchiveDir/$PreviousBGCaseName.cism.r."$BG_Restart_Year"-01-01-00000.nc;      cp -uvf $f $JG_t_RunDir || { echo "copy of $f failed" ; exit 1; }
     f=$BG_tm1_ArchiveDir/$PreviousBGCaseName.clm2.r."$BG_Restart_Year"-01-01-00000.nc;      cp -uvf $f $JG_t_RunDir || { echo "copy of $f failed" ; exit 1; }
@@ -166,14 +121,15 @@ D=$PWD
     sed -i "s/[0-9]\{4\}-01-01-00000/"$BG_Restart_Year"-01-01-00000/g" "$BG_tm1_ArchiveDir"/rpointer.*
 
 ###configure submission length, diagnostic CPL history output, and restarting
-    ./xmlchange STOP_OPTION='nyears'
-    ./xmlchange STOP_N=5
+    ./xmlchange STOP_OPTION='ndays'
+    ./xmlchange STOP_N=20
     ./xmlchange HIST_OPTION='nmonths'
     ./xmlchange HIST_N=1
-    ./xmlchange RESUBMIT=9
+    ./xmlchange RESUBMIT=0
     ./xmlchange JOB_QUEUE='regular'
-    ./xmlchange JOB_WALLCLOCK_TIME='10:00:00'
+    ./xmlchange JOB_WALLCLOCK_TIME='01:00:00'
     ./xmlchange PROJECT="$ProjCode"
+    ./xmlchange REST_OPTION='never'
 
 ###make some soft links for convenience 
     ln -svf $JG_t_RunDir RunDir

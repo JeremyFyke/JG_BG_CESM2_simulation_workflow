@@ -8,7 +8,7 @@ D=$PWD
     t=2
     let tm1=t-1
 
-    BG_CaseName_Root=BG_iteration_
+    BG_CaseName_Root=BG_iteration_get_topog_updater_working_
     JG_CaseName_Root=JG_iteration_
 
     BG_Restart_Year=0012
@@ -16,7 +16,7 @@ D=$PWD
 
     CaseName=$BG_CaseName_Root"$t"
     PreviousJGCaseName=$JG_CaseName_Root"$t"
-    PreviousBGCaseName="$BG_CaseName_Root""$tm1"
+    PreviousBGCaseName=BG_iteration_"$tm1"
        
     BG_t_RunDir=/glade/scratch/jfyke/$CaseName/run
     JG_t_RunDir=/glade/scratch/jfyke/$PreviousJGCaseName/run
@@ -40,78 +40,6 @@ D=$PWD
     #Change directories into the new experiment case directory
     cd $D/$CaseName
 
-    NTHRDS=1
-    PES_PER_NODE=36
-    MAX_TASKS_PER_NODE=36
-
-    NTASKS_ATM=50*$PES_PER_NODE
-    NTHRDS_ATM=$NTHRDS
-    ROOTPE_ATM=0
-
-    NTASKS_GLC=$NTASKS_ATM
-    NTHRDS_GLC=$NTHRDS
-    ROOTPE_GLC=0
-
-    NTASKS_LND=39*$PES_PER_NODE
-    NTHRDS_LND=$NTHRDS
-    ROOTPE_LND=0
-
-    NTASKS_ROF=$NTASKS_LND
-    NTHRDS_ROF=$NTHRDS
-    ROOTPE_ROF=$ROOTPE_LND
-
-    NTASKS_ICE=10*$PES_PER_NODE
-    NTHRDS_ICE=$NTHRDS
-    ROOTPE_ICE=$NTASKS_LND
-
-    NTASKS_CPL=$NTASKS_ICE
-    NTHRDS_CPL=$NTHRDS
-    ROOTPE_CPL=$NTASKS_LND
-
-    NTASKS_WAV=1*$PES_PER_NODE
-    NTHRDS_WAV=$NTHRDS
-    ROOTPE_WAV=$NTASKS_LND+$NTASKS_ICE
-
-    NTASKS_OCN=10*$PES_PER_NODE
-    NTHRDS_OCN=$NTHRDS
-    ROOTPE_OCN=$NTASKS_ATM
-    
-    ./xmlchange NTASKS_ATM=$NTASKS_ATM
-    ./xmlchange NTHRDS_ATM=$NTHRDS_ATM
-    ./xmlchange ROOTPE_ATM=$ROOTPE_ATM
-
-    ./xmlchange NTASKS_GLC=$NTASKS_GLC
-    ./xmlchange NTHRDS_GLC=$NTHRDS_GLC
-    ./xmlchange ROOTPE_GLC=$ROOTPE_GLC
-
-    ./xmlchange NTASKS_LND=$NTASKS_LND
-    ./xmlchange NTHRDS_LND=$NTHRDS_LND
-    ./xmlchange ROOTPE_LND=$ROOTPE_LND
-
-    ./xmlchange NTASKS_ROF=$NTASKS_ROF
-    ./xmlchange NTHRDS_ROF=$NTHRDS_ROF
-    ./xmlchange ROOTPE_ROF=$ROOTPE_ROF
-
-    ./xmlchange NTASKS_ICE=$NTASKS_ICE
-    ./xmlchange NTHRDS_ICE=$NTHRDS_ICE
-    ./xmlchange ROOTPE_ICE=$ROOTPE_ICE
-
-    ./xmlchange NTASKS_CPL=$NTASKS_CPL
-    ./xmlchange NTHRDS_CPL=$NTHRDS_CPL
-    ./xmlchange ROOTPE_CPL=$ROOTPE_CPL
-
-    ./xmlchange NTASKS_WAV=$NTASKS_WAV
-    ./xmlchange NTHRDS_WAV=$NTHRDS_WAV
-    ./xmlchange ROOTPE_WAV=$ROOTPE_WAV
-
-    ./xmlchange NTASKS_OCN=$NTASKS_OCN
-    ./xmlchange NTHRDS_OCN=$NTHRDS_OCN
-    ./xmlchange ROOTPE_OCN=$ROOTPE_OCN
-
-    ./xmlchange PES_PER_NODE=$PES_PER_NODE
-    ./xmlchange MAX_TASKS_PER_NODE=$MAX_TASKS_PER_NODE
-
-
 ###customize PE layout
 
 ###set up case    
@@ -120,10 +48,7 @@ D=$PWD
     ./xmlchange RUN_REFCASE=$PreviousJGCaseName
     ./xmlchange RUN_REFDATE="$JG_Restart_Year"-01-01  
     ./case.setup
-
-###make some soft links for convenience
-    ln -s $BG_t_RunDir RunDir   
-
+   
 ###enable custom coupler output
     echo 'histaux_a2x3hr = .true.' > user_nl_cpl
     echo 'histaux_a2x24hr = .true.' >> user_nl_cpl
@@ -149,16 +74,18 @@ D=$PWD
      
      if [ ! -d $CAM_topo_regen_dir ]; then
        echo 'Checking out and building topography updater...'
-
+       
+       source $CAM_topo_regen_dir/setup.sh -r $BG_t_RunDir -p "$ProjCode" -w 00:30:00
+       
+       #gmake=/usr/bin/gmake
+       #gmake=gmake       
+       
        trunk=https://svn-ccsm-models.cgd.ucar.edu/tools/dynamic_cam_topography/trunk
-       svn co --quiet $trunk $CAM_topo_regen_dir
-       
-       source $CAM_topo_regen_dir/setup.sh --rundir $BG_t_RunDir --project "$ProjCode" --walltime 00:45:00 --queue regular       
-       
+       svn co $trunk $CAM_topo_regen_dir
        cd $CAM_topo_regen_dir/bin_to_cube
-       gmake --quiet
+       gmake
        cd $CAM_topo_regen_dir/cube_to_target
-       gmake --quiet
+       gmake
  
        cd $D/$CaseName
  
@@ -168,7 +95,7 @@ D=$PWD
        ./xmlchange DATA_ASSIMILATION_SCRIPT=$data_assimilation_script
 
       fi       
-
+   
 ###configure archiving
     ./xmlchange DOUT_S=FALSE
 
@@ -202,55 +129,14 @@ D=$PWD
     f=$BG_tm1_RunDir/$PreviousBGCaseName.cam.i.$BG_Restart_Year-01-01-00000.nc;  cp -vf $f $BG_t_RunDir || { echo "copy of $f failed" ; exit 1; }
     f=$BG_tm1_RunDir/rpointer.atm;                                               cp -vf $f $BG_t_RunDir || { echo "copy of $f failed" ; exit 1; }  
 
-###set component-specific restarting tweaks that aren't handled by default
-    #CAM
-    #overwrite default script-generated restart info with custom values, to represent the migrated CAM restart file
-	echo "bnd_topo='$BG_t_RunDir/$PreviousBGCaseName.cam.r.$BG_Restart_Year-01-01-00000.nc'" > user_nl_cam
-        echo "ncdata='$BG_t_RunDir/$PreviousBGCaseName.cam.i.$BG_Restart_Year-01-01-00000.nc'" >> user_nl_cam
-    #for a hybrid run, tack on landm_coslat, landfrac to cam.r. (since this is being used as the topography file)
-    DataSourceFile=/glade/p/cesmdata/cseg/inputdata/atm/cam/topo/fv_0.9x1.25_nc3000_Nsw042_Nrs008_Co060_Fi001_ZR_sgh30_24km_GRNL_c170103.nc
-    ncks -A -v LANDM_COSLAT,LANDFRAC,\
-TERR_UF,\
-SGH_UF,\
-GBXAR,\
-MXDIS,\
-RISEQ,\
-FALLQ,\
-MXVRX,\
-MXVRY,\
-ANGLL,\
-ANGLX,\
-ANISO,\
-ANIXY,\
-HWDTH,\
-WGHTS,\
-CLNGT,\
-CWGHT,\
-COUNT $DataSourceFile $BG_t_RunDir/$PreviousBGCaseName.cam.r.$BG_Restart_Year-01-01-00000.nc
-	
-    #Ensure dates are correct (can be wrong if year previous to final year of JG run is used)
-    sed -i "s/[0-9]\{4\}-01-01-00000/"$BG_Restart_Year"-01-01-00000/g" $BG_t_RunDir/rpointer.atm
-    
-###configure submission length and restarting
-    ./xmlchange STOP_OPTION='nyears'
-    ./xmlchange STOP_N=1
-    ./xmlchange RESUBMIT=10
-    ./xmlchange JOB_QUEUE='regular'
-    ./xmlchange JOB_WALLCLOCK_TIME='04:00:00'
-    ./xmlchange PROJECT="$ProjCode"   
+###make some soft links for convenience
+    ln -s $BG_t_RunDir RunDir
 
-#####run dynamic topography interactively update to bring CAM topography up to JG-generated topography before starting
-    if [ ! -f $BG_t_RunDir/Temporary_output_file.nc ]; then #Presence of this file signifies an already-run topography updating in this new BG directory...so, skip
-       echo 'Submitting an initial topography updating job.  Specified 25 minute sleep of this script will ensue.'
-       cd $CAM_topo_regen_dir
-       ./submit_topo_regen_script.sh
-       cd $D/$CaseName
-       sleep 25m
-    fi
+####run dynamic topography interactively update to bring CAM topography up to JG-generated topography before starting
+    cd $CAM_topo_regen_dir
+    export RUNDIR=$BG_t_RunDir
+    ./CAM_topo_regen.sh
+    cd $D/$CaseName
 
-####build
-    ./case.build
-####submit
-    ./case.submit
 
 
