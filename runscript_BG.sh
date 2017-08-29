@@ -5,14 +5,14 @@
 
 D=$PWD
 
-    t=2
+    t=3
     let tm1=t-1
 
     BG_CaseName_Root=BG_iteration_
     JG_CaseName_Root=JG_iteration_
 
     BG_Restart_Year=0012
-    JG_Restart_Year=0011
+    JG_Restart_Year=0006
 
     CaseName=$BG_CaseName_Root"$t"
     PreviousJGCaseName=$JG_CaseName_Root"$t"
@@ -236,7 +236,7 @@ COUNT $DataSourceFile $BG_t_RunDir/$PreviousBGCaseName.cam.r.$BG_Restart_Year-01
     ./xmlchange STOP_N=1
     ./xmlchange RESUBMIT=10
     ./xmlchange JOB_QUEUE='regular'
-    ./xmlchange JOB_WALLCLOCK_TIME='04:00:00'
+    ./xmlchange JOB_WALLCLOCK_TIME='02:00:00'
     ./xmlchange PROJECT="$ProjCode"   
 
 #####run dynamic topography interactively update to bring CAM topography up to JG-generated topography before starting

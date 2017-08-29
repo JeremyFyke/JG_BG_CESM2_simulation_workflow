@@ -2,8 +2,12 @@
 
 D=$PWD
 
+###$SRCROOT modifications:
+   #-'a2x3h_S_topo topo' line added to datm/cime_config/namelist_definition_datm.xml (so topo is read by JG)
+   #-extra POP PE layouts added to $SRCROOT/components/pop/bld/generate_pop_decomp.xml
+
 ###build up CaseNames, RunDirs, Archive Dirs, etc.
-    t=3
+    t=4
     let tm1=t-1
 
     BG_CaseName_Root=BG_iteration_
@@ -42,7 +46,7 @@ D=$PWD
     #Following PE layouts are clumped in order of concurrence.
     ALLOCATED_PEs=0
     #ATM/LND
-    TASKS_LND_ROF=180
+    TASKS_LND_ROF=756
     ./xmlchange NTASKS_LND=$TASKS_LND_ROF
     ./xmlchange NTASKS_ROF=$TASKS_LND_ROF
     ./xmlchange ROOTPE_LND=$ALLOCATED_PEs       
@@ -50,7 +54,7 @@ D=$PWD
     let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_LND_ROF
 
     #ICE
-    TASKS_ICE=72
+    TASKS_ICE=216
     ./xmlchange NTASKS_ICE=$TASKS_ICE
     ./xmlchange ROOTPE_ICE=$ALLOCATED_PEs
     let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_ICE    
@@ -68,9 +72,17 @@ D=$PWD
     let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_DATM
     
     #OCN
-    TASKS_OCN=360
+    TASKS_OCN=1728
+         ./xmlchange POP_DECOMPTYPE='cartesian'
+	 ./xmlchange POP_AUTO_DECOMP=FALSE
+         ./xmlchange POP_MXBLCKS=1
+	 ./xmlchange POP_NX_BLOCKS=36
+	 ./xmlchange POP_NY_BLOCKS=48
+	 ./xmlchange POP_BLCKX=9
+	 ./xmlchange POP_BLCKY=8
     ./xmlchange NTASKS_OCN=$TASKS_OCN
-    ./xmlchange ROOTPE_OCN=$ALLOCATED_PEs    
+    ./xmlchange ROOTPE_OCN=$ALLOCATED_PEs
+     
     let ALLOCATED_PEs=ALLOCATED_PEs+TASKS_OCN
     
     #CPL #overlay CPL on LND/ROF, ICE, WAV, and DATM PE columns
@@ -116,7 +128,10 @@ D=$PWD
     
 ###configure POP
     #Turn off precipitation scaling in POP for JG runs
-    echo ladjust_precip=.false. > user_nl_pop       
+    echo ladjust_precip=.false. > user_nl_pop
+    echo lsend_precip_fact=.false. >> user_nl_pop
+    #Turn on inland sea->open ocean rebalancing (should reduce amount of restoring in these regions)
+    echo lms_balance=.true. >> user_nl_pop 
     
 ###concatenate monthly forcing files to expected location
     
@@ -167,12 +182,12 @@ D=$PWD
 
 ###configure submission length, diagnostic CPL history output, and restarting
     ./xmlchange STOP_OPTION='nyears'
-    ./xmlchange STOP_N=5
+    ./xmlchange STOP_N=25
     ./xmlchange HIST_OPTION='nmonths'
-    ./xmlchange HIST_N=1
-    ./xmlchange RESUBMIT=9
+    ./xmlchange HIST_N=1   
+    ./xmlchange RESUBMIT=5
     ./xmlchange JOB_QUEUE='regular'
-    ./xmlchange JOB_WALLCLOCK_TIME='10:00:00'
+    ./xmlchange JOB_WALLCLOCK_TIME='12:00:00'
     ./xmlchange PROJECT="$ProjCode"
 
 ###make some soft links for convenience 
@@ -205,7 +220,7 @@ D=$PWD
     
     echo "sfwf_filename='$BG_tm1_ArchiveDir/climo_SSS_FLXIO.nc'" >> user_nl_pop
     echo "sfwf_file_fmt='nc'" >> user_nl_pop
-    echo "sfwf_data_type='monthly'" >> user_nl_pop    
+    echo "sfwf_data_type='monthly'" >> user_nl_pop
     
 ###build
     ./case.build    
