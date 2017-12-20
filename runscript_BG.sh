@@ -1,22 +1,23 @@
 #!/bin/bash
 
-###NOTES###
-#Additional fields being added from topo init file at present, probably because topography updater isn't working.  When latter is fixed, remove these fields
-
+###TO DO NOTES###
+#-Update ice sheet model
+#-Ensure working topography updating with new version
+#-trim output fields where possible
 D=$PWD
 
-    t=3
+    t=4
     let tm1=t-1
 
     BG_CaseName_Root=BG_iteration_
     JG_CaseName_Root=JG_iteration_
 
     BG_Restart_Year=0012
-    JG_Restart_Year=0006
+    JG_Restart_Year=0076
 
     CaseName=$BG_CaseName_Root"$t"
-    PreviousJGCaseName=$JG_CaseName_Root"$t"
-    PreviousBGCaseName="$BG_CaseName_Root""$tm1"
+    PreviousJGCaseName=$JG_CaseName_Root"$t" #Need previous JG iteration to exist, of same iteration number as planned BG
+    PreviousBGCaseName="$BG_CaseName_Root""$tm1" #Need previous BG iteration to exist, of n-1 iteration number as planned BG
        
     BG_t_RunDir=/glade/scratch/jfyke/$CaseName/run
     JG_t_RunDir=/glade/scratch/jfyke/$PreviousJGCaseName/run
@@ -193,7 +194,7 @@ D=$PWD
     f=$JG_t_RunDir/rpointer.ocn.restart;                                              cp -vf $f $BG_t_RunDir || { echo "copy of $f failed" ; exit 1; }
     f=$JG_t_RunDir/rpointer.rof;                                                      cp -vf $f $BG_t_RunDir || { echo "copy of $f failed" ; exit 1; }
 
-    #Ensure dates of non-CAM restarts are correct (can be wrong if year previous to final year of JG run is used)
+    #Ensure dates of non-CAM restart pointers are correct (can be wrong if year previous to final year of JG run is used)
     sed -i "s/[0-9]\{4\}-01-01-00000/"$JG_Restart_Year"-01-01-00000/g" $BG_t_RunDir/rpointer.*
 
     #Then copy over CAM restarts
@@ -205,28 +206,30 @@ D=$PWD
 ###set component-specific restarting tweaks that aren't handled by default
     #CAM
     #overwrite default script-generated restart info with custom values, to represent the migrated CAM restart file
-	echo "bnd_topo='$BG_t_RunDir/$PreviousBGCaseName.cam.r.$BG_Restart_Year-01-01-00000.nc'" > user_nl_cam
+	echo "bnd_topo='$BG_t_RunDir/topoDataset.nc'" > user_nl_cam
         echo "ncdata='$BG_t_RunDir/$PreviousBGCaseName.cam.i.$BG_Restart_Year-01-01-00000.nc'" >> user_nl_cam
+
+#Jer: if Marcus's updates to topography updater work, then the following lines can be removed.
     #for a hybrid run, tack on landm_coslat, landfrac to cam.r. (since this is being used as the topography file)
-    DataSourceFile=/glade/p/cesmdata/cseg/inputdata/atm/cam/topo/fv_0.9x1.25_nc3000_Nsw042_Nrs008_Co060_Fi001_ZR_sgh30_24km_GRNL_c170103.nc
-    ncks -A -v LANDM_COSLAT,LANDFRAC,\
-TERR_UF,\
-SGH_UF,\
-GBXAR,\
-MXDIS,\
-RISEQ,\
-FALLQ,\
-MXVRX,\
-MXVRY,\
-ANGLL,\
-ANGLX,\
-ANISO,\
-ANIXY,\
-HWDTH,\
-WGHTS,\
-CLNGT,\
-CWGHT,\
-COUNT $DataSourceFile $BG_t_RunDir/$PreviousBGCaseName.cam.r.$BG_Restart_Year-01-01-00000.nc
+#    DataSourceFile=/glade/p/cesmdata/cseg/inputdata/atm/cam/topo/fv_0.9x1.25_nc3000_Nsw042_Nrs008_Co060_Fi001_ZR_sgh30_24km_GRNL_c170103.nc
+#    ncks -A -v LANDM_COSLAT,LANDFRAC,\
+#TERR_UF,\
+#SGH_UF,\
+#GBXAR,\
+#MXDIS,\
+#RISEQ,\
+#FALLQ,\
+#MXVRX,\
+#MXVRY,\
+#ANGLL,\
+#ANGLX,\
+#ANISO,\
+#ANIXY,\
+#HWDTH,\
+#WGHTS,\
+#CLNGT,\
+#CWGHT,\
+#COUNT $DataSourceFile $BG_t_RunDir/$PreviousBGCaseName.cam.r.$BG_Restart_Year-01-01-00000.nc
 	
     #Ensure dates are correct (can be wrong if year previous to final year of JG run is used)
     sed -i "s/[0-9]\{4\}-01-01-00000/"$BG_Restart_Year"-01-01-00000/g" $BG_t_RunDir/rpointer.atm
@@ -234,18 +237,18 @@ COUNT $DataSourceFile $BG_t_RunDir/$PreviousBGCaseName.cam.r.$BG_Restart_Year-01
 ###configure submission length and restarting
     ./xmlchange STOP_OPTION='nyears'
     ./xmlchange STOP_N=1
-    ./xmlchange RESUBMIT=10
+    ./xmlchange RESUBMIT=34
     ./xmlchange JOB_QUEUE='regular'
     ./xmlchange JOB_WALLCLOCK_TIME='02:00:00'
     ./xmlchange PROJECT="$ProjCode"   
 
 #####run dynamic topography interactively update to bring CAM topography up to JG-generated topography before starting
     if [ ! -f $BG_t_RunDir/Temporary_output_file.nc ]; then #Presence of this file signifies an already-run topography updating in this new BG directory...so, skip
-       echo 'Submitting an initial topography updating job.  Specified 25 minute sleep of this script will ensue.'
+       echo 'Submitting an initial topography updating job.  Specified 45 minute sleep of this script will ensue.'
        cd $CAM_topo_regen_dir
        ./submit_topo_regen_script.sh
        cd $D/$CaseName
-       sleep 25m
+       sleep 45m
     fi
 
 ####build
