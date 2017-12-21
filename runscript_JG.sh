@@ -2,10 +2,6 @@
 
 D=$PWD
 
-###$SRCROOT modifications:
-   #-'a2x3h_S_topo topo' line added to datm/cime_config/namelist_definition_datm.xml (so topo is read by JG)
-   #-extra POP PE layouts added to $SRCROOT/components/pop/bld/generate_pop_decomp.xml
-
 ###build up CaseNames, RunDirs, Archive Dirs, etc.
     t=4
     let tm1=t-1
@@ -29,6 +25,13 @@ D=$PWD
 ###set up model
     #Set the source code from which to build model
     CCSMRoot=/glade/u/home/jfyke/work/CESM_model_versions/cesm2_0_alpha06o
+    
+    echo '****'
+    echo "Building code from $CCSMRoot with source code modifications in following files:"
+    svn status $CCSMRoot | grep 'M    '
+    echo '****'
+    exit    
+    
     $CCSMRoot/cime/scripts/create_newcase \
                            --case $D/$CaseName \
 			   --res f09_g17_gl4 \
